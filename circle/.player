@@ -1,0 +1,30 @@
+plugins.cc:92 trying to load /usr/lib/libstageplugin...
+plugins.cc:95 success
+plugins.cc:217 invoking player_driver_init()...
+plugins.cc:233 success
+playertcp.cc:290 accepted TCP client 0 on port 12121, fd 10
+playertcp.cc:852 read() read zero bytes
+playertcp.cc:464 failed to read from client 0
+playertcp.cc:387 closing TCP connection to client 0 on port 12121
+plugins.cc:92 trying to load /usr/lib/libstageplugin...
+plugins.cc:95 success
+plugins.cc:217 invoking player_driver_init()...
+plugins.cc:233 success
+playertcp.cc:290 accepted TCP client 0 on port 12121, fd 10
+playertcp.cc:852 read() read zero bytes
+playertcp.cc:464 failed to read from client 0
+playertcp.cc:387 closing TCP connection to client 0 on port 12121
+plugins.cc:92 trying to load /usr/lib/libstageplugin...
+plugins.cc:95 success
+plugins.cc:217 invoking player_driver_init()...
+plugins.cc:233 success
+playertcp.cc:290 accepted TCP client 0 on port 12121, fd 10
+playertcp.cc:456 warning : other error on client 0
+playertcp.cc:387 closing TCP connection to client 0 on port 12121
+plugins.cc:92 trying to load /usr/lib/libstageplugin...
+plugins.cc:95 success
+plugins.cc:217 invoking player_driver_init()...
+plugins.cc:233 success
+playertcp.cc:290 accepted TCP client 0 on port 12121, fd 10
+playertcp.cc:456 warning : other error on client 0
+playertcp.cc:387 closing TCP connection to client 0 on port 12121

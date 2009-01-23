@@ -1,0 +1,3 @@
+wall: wall.c
+	gcc `pkg-config --cflags playerc` -o wall `pkg-config --libs playerc` wall.c
+
