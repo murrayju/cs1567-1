@@ -1,4 +1,5 @@
 //Justin Murray
+//Dean Pantages
 //PID control functions
 
 #include <stdio.h>
