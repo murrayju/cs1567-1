@@ -6,6 +6,4 @@
 
 int bumped(playerc_bumper_t *);
 
-double Move(playerc_posiiton2d_t *, double);
-
-double Turn(playerc_posiiton2d_t *, double);
+double Move(playerc_client_t * client, playerc_posiiton2d_t * pos2D, playerc_bumper_t * bumper, double meters);

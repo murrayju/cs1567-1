@@ -73,7 +73,7 @@ int bumped(playerc_bumper_t * b) {
 	return b->bumpers[0] || b->bumpers[1];
 }
 
-double Move(playerc_posiiton2d_t * pos2D, double meters) {
+double Move(playerc_client_t * client, playerc_posiiton2d_t * pos2D, playerc_bumper_t * bumper, double X, double Y) {
 	double startpos, pos, error;
 	pid_data tranData, rotData;
 	
@@ -81,13 +81,17 @@ double Move(playerc_posiiton2d_t * pos2D, double meters) {
 	memset(&tranData, 0, sizeof(pid_data));
 	memset(&rotData, 0, sizeof(pid_data));
 	
-	startpos = device->px;
+	tranData->Kp = 1;
+	tranData->Kd = 0;
+	tranData->Ki = 0;
 	
-	do {
+	startpos = pos2D->px;
+	
+	while(!bumped() && error > TOL) {
 		pos = device->px - startpos;
 		error = meters - pos;
 		playerc_position2d_set_cmd_vel(position2d, PID(error), 0, 0, 1);
-	} while(error > TOL);
+	} 
 	
 	playerc_position2d_set_cmd_vel(position2d, 0, 0, 0, 1);
 	return 
