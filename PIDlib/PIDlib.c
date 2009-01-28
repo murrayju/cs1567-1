@@ -2,25 +2,83 @@
 //PID control functions
 
 #include <stdio.h>
+#include <math.h>
 #include <libplayerc/playerc.h>
 #include "PIDlib.h"
 
-#define Kp 3.5
-#define Kd 1
-#define Ki 1
-#define I_MAX 50
-#define TOL 0.001
-
 #define NUMERR 10
-double * errors = NULL;
-int Eindex = 0;
+
+typedef struct pid_data_struct {
+	double Kp, Kd, Ki;
+	double errorHist[NUMERR];
+	int iErr;
+	double tol;
+	double maxI;
+} pid_data;
+
+double prevError(pid_data * data) {
+	if(data->iErr == 0) {
+		return data->errorHist[NUMERR - 1];
+	} else {
+		return data->errorHist[data->iErr - 1];
+	}
+}
+
+double errorSum(pid_data * data) {
+	double sum = 0;
+	int i;
+	for(i=0; i<NUMERR; i++) {
+		sum += data->errorHist[i];
+	}
+	
+	if(sum > maxI) {
+		return maxI;
+	} else {
+		return sum;
+	}
+}
+
+double PID(pid_data * data) {
+	double pTerm, dTerm, iTerm;
+	
+	double error = data->errorHist[data->iErr];
+	
+	pTerm = data->Kp * error;
+	
+	dTerm = Kd * (error - prevError(data));
+	
+	iTerm = Ki * errorSum(data);
+	
+	
+	return (pTerm + dTerm + iTerm);
+}
+
+double tranError(playerc_posiiton2d_t * pos2D, pid_data * data, double tX, double tY) {
+	data->iErr = (data->iErr + 1) % NUMERR;
+	
+	return data->errorHist[data->iErr] = sqrt( (tX - pos2D->px)*(tX - pos2D->px) + (tY - pos2D->py)*(tY - pos2D->py) );
+}
+
+double rotError(playerc_posiiton2d_t * pos2D, pid_data * data, double tX, double tY) {
+	double theta;
+	data->iErr = (data->iErr + 1) % NUMERR;
+	
+	theta = arctan2(tX - pos2D->px, tY - pos2D->py);
+	
+	return data->errorHist[data->iErr] = pos2D->pa - theta;
+}
 
 int bumped(playerc_bumper_t * b) {
 	return b->bumpers[0] || b->bumpers[1];
 }
 
-double Move(playerc_posiiton2d_t *device, double meters) {
+double Move(playerc_posiiton2d_t * pos2D, double meters) {
 	double startpos, pos, error;
+	pid_data tranData, rotData;
+	
+	//clear structs
+	memset(&tranData, 0, sizeof(pid_data));
+	memset(&rotData, 0, sizeof(pid_data));
 	
 	startpos = device->px;
 	
@@ -36,52 +94,5 @@ double Move(playerc_posiiton2d_t *device, double meters) {
 
 double Turn(playerc_posiiton2d_t *device, double radians) {
 	
-}
-
-double PID(double error) {
-	double pTerm, dTerm, iTerm;
-	
-	if(errors == NULL) {
-		errors = malloc(NUMERR * sizeof(double));
-		memset(errors, 0, 10 * sizeof(double));
-		Eindex = 0;
-	}
-	
-	errors[Eindex] = error;
-	
-	pTerm = Kp * error;
-	
-	dTerm = Kd * (error - prevError());
-	
-	iTerm = Ki * errorSum();
-	
-	Eindex++;
-	if(Eindex >= NUMERR) {
-		Eindex = 0;
-	}
-	
-	return (pTerm + dTerm + iTerm);
-}
-
-double prevError() {
-	if(Eindex == 0) {
-		return errors[NUMERR - 1];
-	} else {
-		return errors[Eindex - 1];
-	}
-}
-
-double errorSum() {
-	double sum = 0;
-	int i;
-	for(i=0; i<NUMERR; i++) {
-		sum += errors[i];
-	}
-	
-	if(sum > I_MAX) {
-		return I_MAX;
-	} else {
-		return sum;
-	}
 }
 
