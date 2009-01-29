@@ -18,6 +18,7 @@ typedef struct pid_data_struct {
 	double tol;
 	double maxI;
 	double Xi, Yi, Ai;
+	int doDiff;
 } pid_data;
 
 double prevError(pid_data * data) {
@@ -49,7 +50,12 @@ double PID(pid_data * data) {
 	
 	pTerm = data->Kp * error;
 	
-	dTerm = data->Kd * (error - prevError(data));
+	if(data->doDiff) {
+		dTerm = data->Kd * (error - prevError(data));
+	} else {
+		dTerm = 0;
+		data->doDiff = 1;
+	}
 	
 	iTerm = data->Ki * errorSum(data);
 	
@@ -70,26 +76,43 @@ double targetRotError(playerc_position2d_t * pos2D, pid_data * data, double tX, 
 	double relX = pos2D->px - data->Xi;
 	double relY = pos2D->py - data->Yi;
 	double relA = pos2D->pa - data->Ai;
-	double theta;
+	double theta, error;
 	data->iErr = (data->iErr + 1) % NUMERR;
 	
 	theta = atan2(tY - relY, tX - relX);
 	
-	printf("TRE: relX=%f relY=%f relA=%f theta=%f err=%f\n",relX,relY,relA,theta,theta-relA);
+	error = fabs( fabs(theta) - fabs(relA) );
+	if(theta < 0) {
+		error = -error;
+	}
 	
-	return data->errorHist[data->iErr] = theta - relA;
+	printf("TRE: relX=%f relY=%f relA=%f theta=%f err=%f\n",relX,relY,relA,theta,error);
+	
+	return data->errorHist[data->iErr] = error;
 }
 
 double rotError(playerc_position2d_t * pos2D, pid_data * data, double tA) {
 	double relA = pos2D->pa - data->Ai;
+	double error;
 	
 	data->iErr = (data->iErr + 1) % NUMERR;
 	
-	return data->errorHist[data->iErr] = tA - relA;
+	error = fabs( fabs(tA) - fabs(relA) );
+	if(tA < 0) {
+		error = -error;
+	}
+	
+	return data->errorHist[data->iErr] = error;
 }
 
+
 int bumped(playerc_bumper_t * b) {
-	return b->bumpers[0] || b->bumpers[1];
+	static int storeBump = 0;
+	if(storeBump) {
+		return 1;
+	} else {
+		return storeBump = (b->bumpers[0] || b->bumpers[1]);
+	}
 }
 
 double Move(playerc_client_t * client, playerc_position2d_t * pos2D, playerc_bumper_t * bumper, double X, double Y) {
@@ -101,17 +124,17 @@ double Move(playerc_client_t * client, playerc_position2d_t * pos2D, playerc_bum
 	memset(&rotData, 0, sizeof(pid_data));
 	
 	//Set parameters
-	tranData.Kp = 2;
-	tranData.Kd = 0;
-	tranData.Ki = 0;
+	tranData.Kp = 1;
+	tranData.Kd = 1.5;
+	tranData.Ki = 0.005;
 	tranData.tol = 0.01;
 	tranData.maxI = 10;
 	
-	rotData.Kp = 4;
-	rotData.Kd = 0;
-	rotData.Ki = 0;
+	rotData.Kp = .5;
+	rotData.Kd = 2;
+	rotData.Ki = .01;
 	rotData.tol = 0.01;
-	rotData.maxI = 10;
+	rotData.maxI = 3;
 	
 	playerc_client_read(client);
 	
@@ -139,7 +162,7 @@ double Move(playerc_client_t * client, playerc_position2d_t * pos2D, playerc_bum
 			printf("Backwards! T: %f  R: %f\n",tError,rError);
 		}
 		vX = PID(&tranData);
-		vA = PID(&rotData);
+		vA = PID(&rotData) * vX;
 		playerc_position2d_set_cmd_vel(pos2D, vX, 0, vA, 1); //set new speeds
 		playerc_client_read(client); //update position from sensors
 		
@@ -148,10 +171,13 @@ double Move(playerc_client_t * client, playerc_position2d_t * pos2D, playerc_bum
 	
 	playerc_position2d_set_cmd_vel(pos2D, 0, 0, 0, 1); //STOP!
 	playerc_client_read(client); //update position from sensors
+	
+	Turn(client,pos2D,bumper,-(pos2D->pa - rotData.Ai));
+	
 	return tranError(pos2D, &tranData, X, Y);
 }
 
-double Turn(playerc_position2d_t *device, double A) {
+double Turn(playerc_client_t * client, playerc_position2d_t * pos2D, playerc_bumper_t * bumper, double A) {
 	double rError, vA;
 	pid_data rotData;
 	
@@ -159,11 +185,11 @@ double Turn(playerc_position2d_t *device, double A) {
 	memset(&rotData, 0, sizeof(pid_data));
 	
 	//Set parameters
-	rotData.Kp = 4;
-	rotData.Kd = 0;
-	rotData.Ki = 0;
-	rotData.tol = 0.01;
-	rotData.maxI = 10;
+	rotData.Kp = 0.5;
+	rotData.Kd = 1.2;
+	rotData.Ki = .005;
+	rotData.tol = 0.001;
+	rotData.maxI = 0.5;
 	
 	playerc_client_read(client);
 	
@@ -172,7 +198,7 @@ double Turn(playerc_position2d_t *device, double A) {
 	rotData.Yi = pos2D->py;
 	rotData.Ai = pos2D->pa;
 	
-	while(!bumped(bumper) && (rError = targetRotError(pos2D,&rotData, X, Y)) > rotData.tol) {
+	while(!bumped(bumper) && fabs(rError = rotError(pos2D,&rotData, A)) > rotData.tol) {
 		vA = PID(&rotData);
 		playerc_position2d_set_cmd_vel(pos2D, 0, 0, vA, 1); //set new speeds
 		playerc_client_read(client); //update position from sensors
@@ -182,6 +208,6 @@ double Turn(playerc_position2d_t *device, double A) {
 	
 	playerc_position2d_set_cmd_vel(pos2D, 0, 0, 0, 1); //STOP!
 	playerc_client_read(client); //update position from sensors
-	return tranError(pos2D, &tranData, X, Y);
+	return rotError(pos2D, &rotData, A);
 }
 
