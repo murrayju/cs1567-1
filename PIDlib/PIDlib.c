@@ -43,6 +43,10 @@ double errorSum(pid_data * data) {
 	}
 }
 
+double dist(double x, double y) {
+	return sqrt( x*x + y*y);
+}
+
 double PID(pid_data * data) {
 	double pTerm, dTerm, iTerm;
 	
@@ -65,34 +69,101 @@ double PID(pid_data * data) {
 }
 
 double tranError(playerc_position2d_t * pos2D, pid_data * data, double tX, double tY) {
-	double relX = pos2D->px - data->Xi;
-	double relY = pos2D->py - data->Yi;
+	double relX = pos2D->px - data->Xi; //X distance travelled
+	double relY = pos2D->py - data->Yi; //Y distance travelled
+	double Xreal, Yreal, Xrem, Yrem;
+	double mew, theta, phi, error;
 	data->iErr = (data->iErr + 1) % NUMERR;
+#ifdef ABSOLUTE_COORD
+	//Find the remaining distance from target
+	Xrem = tX - pos2D->px;
+	Yrem = tY - pos2D->py;
+#else
+	//calculate angle based on relative coordinate system
+	mew = atan2(tY, tX);
 	
-	return data->errorHist[data->iErr] = sqrt( (tX - relX)*(tX - relX) + (tY - relY)*(tY - relY) );
+	//Find the real X and Y dist from start to finish, in the robot coordinate system
+	Xreal = dist(tX,tY) * cos(mew + data->Ai) + data->Xi;
+	Yreal = dist(tX,tY) * sin(mew + data->Ai) + data->Yi;
+	
+	//Find the remaining distance
+	Xrem = Xreal - pos2D->px;
+	Yrem = Yreal - pos2D->py;
+#endif
+	printf("Remaining real distance - x=%f y=%f\n",Xrem,Yrem);
+	
+	return data->errorHist[data->iErr] = dist(Xrem,Yrem);
+}
+
+//return the difference between A1 and A2, relative to A1
+//A1 is the goal, A2 is current
+double angleDiff(double A1, double A2) {
+	double temp;
+	if(A1 >= 0 && A1 <= (PI / 2.0)) {
+		if(A2 >= 0) {
+			return A1 - A2;
+		} else {
+			temp = A1 - A2;
+			if(temp > PI) {
+				temp -= PI;
+				return -PI + temp;
+			} else {
+				return temp;
+			}
+		}
+	} else if(A1 > (PI / 2.0)) {
+		if(A2 >= 0) {
+			return A1 - A2;
+		} else {
+			temp = (PI - A1) + (PI + A2);
+		}
+	}
 }
 
 double targetRotError(playerc_position2d_t * pos2D, pid_data * data, double tX, double tY) {
-	double relX = pos2D->px - data->Xi;
-	double relY = pos2D->py - data->Yi;
-	double relA = pos2D->pa - data->Ai;
-	double theta, error;
+	double relX = pos2D->px - data->Xi; //X distance travelled
+	double relY = pos2D->py - data->Yi; //Y distance travelled
+	double Xreal, Yreal, Xrem, Yrem;
+	double mew, theta, phi, error;
 	data->iErr = (data->iErr + 1) % NUMERR;
+#ifdef ABSOLUTE_COORD
+	//find the remaining distance to the target
+	Xrem = tX - pos2D->px;
+	Yrem = tY - pos2D->py;
 	
-	theta = atan2(tY - relY, tX - relX);
+	//find the correct angle from pos to target
+	phi = atan2(Yrem, Xrem);
+	error = phi - pos2D->pa;
+#else
+	//calculate angle based on relative coordinate system
+	mew = atan2(tY, tX);
 	
-	error = fabs( fabs(theta) - fabs(relA) );
-	if(theta < 0) {
-		error = -error;
-	}
+	//Find the real X and Y dist from start to finish, in the robot coordinate system
+	Xreal = dist(tX,tY) * cos(mew + data->Ai) + data->Xi;
+	Yreal = dist(tX,tY) * sin(mew + data->Ai) + data->Yi;
 	
-	printf("TRE: relX=%f relY=%f relA=%f theta=%f err=%f\n",relX,relY,relA,theta,error);
+	//Find the remaining distance
+	Xrem = Xreal - pos2D->px;
+	Yrem = Yreal - pos2D->py;
+	
+	//Calculate angle from current pos robot X axis to target
+	phi = atan2(Yrem, Xrem);
+	
+	error = phi - pos2D->pa;
+	printf("TRE: target=(%f, %f) phi=%f err=%f\n",Xreal,Yreal,phi,error);
+#endif
+	
+	
 	
 	return data->errorHist[data->iErr] = error;
 }
 
 double rotError(playerc_position2d_t * pos2D, pid_data * data, double tA) {
+#ifdef  ABSOLUTE_COORD
+	double relA = pos2D->pa;
+#else
 	double relA = pos2D->pa - data->Ai;
+#endif
 	double error;
 	
 	data->iErr = (data->iErr + 1) % NUMERR;
@@ -124,17 +195,17 @@ double Move(playerc_client_t * client, playerc_position2d_t * pos2D, playerc_bum
 	memset(&rotData, 0, sizeof(pid_data));
 	
 	//Set parameters
-	tranData.Kp = 1;
-	tranData.Kd = 1.5;
-	tranData.Ki = 0.005;
+	tranData.Kp = 0.9;
+	tranData.Kd = 1.0;
+	tranData.Ki = 0.01;
 	tranData.tol = 0.01;
 	tranData.maxI = 10;
 	
-	rotData.Kp = .5;
+	rotData.Kp = 6;
 	rotData.Kd = 2;
 	rotData.Ki = .01;
 	rotData.tol = 0.01;
-	rotData.maxI = 3;
+	rotData.maxI = 10;
 	
 	playerc_client_read(client);
 	
@@ -149,7 +220,7 @@ double Move(playerc_client_t * client, playerc_position2d_t * pos2D, playerc_bum
 	
 	while(!bumped(bumper) && (tError = tranError(pos2D, &tranData, X, Y)) > tranData.tol) {
 		rError = targetRotError(pos2D,&rotData, X, Y);
-		if(rError > PI/2.0 || rError < -PI/2.0) {
+		if(rError > 0.75*PI || rError < -0.75*PI) {
 			//We passed it up, error should be negative
 			tError = -tError;
 			tranData.errorHist[tranData.iErr] = tError;
@@ -159,10 +230,10 @@ double Move(playerc_client_t * client, playerc_position2d_t * pos2D, playerc_bum
 				rError -= PI;
 			}
 			rotData.errorHist[rotData.iErr] = rError;
-			printf("Backwards! T: %f  R: %f\n",tError,rError);
+			//printf("Backwards! T: %f  R: %f\n",tError,rError);
 		}
 		vX = PID(&tranData);
-		vA = PID(&rotData) * vX;
+		vA = PID(&rotData);// * fabs(vX);
 		playerc_position2d_set_cmd_vel(pos2D, vX, 0, vA, 1); //set new speeds
 		playerc_client_read(client); //update position from sensors
 		
@@ -171,9 +242,9 @@ double Move(playerc_client_t * client, playerc_position2d_t * pos2D, playerc_bum
 	
 	playerc_position2d_set_cmd_vel(pos2D, 0, 0, 0, 1); //STOP!
 	playerc_client_read(client); //update position from sensors
-	
+#ifndef ABSOLUTE_COORD
 	Turn(client,pos2D,bumper,-(pos2D->pa - rotData.Ai));
-	
+#endif	
 	return tranError(pos2D, &tranData, X, Y);
 }
 
@@ -185,9 +256,9 @@ double Turn(playerc_client_t * client, playerc_position2d_t * pos2D, playerc_bum
 	memset(&rotData, 0, sizeof(pid_data));
 	
 	//Set parameters
-	rotData.Kp = 0.5;
-	rotData.Kd = 1.2;
-	rotData.Ki = .005;
+	rotData.Kp = 0.9;
+	rotData.Kd = 0.9;
+	rotData.Ki = .01;
 	rotData.tol = 0.001;
 	rotData.maxI = 0.5;
 	

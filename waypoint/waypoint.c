@@ -3,13 +3,14 @@
 #include <libplayerc/playerc.h>
 #include "../PIDlib/PIDlib.h"
 
-#define SERVER "rosie" //"localhost"
+#define SERVER "gort" //"localhost"
 #define PORT	9876 //12121
 
 
 int main(int argc, const char **argv)
 {
-	double  actual_result;
+	double  actual_result_trans;
+	double  actual_result_angle;
 	int finished;
 	playerc_client_t *client;
 	playerc_position2d_t *position2d;
@@ -48,9 +49,52 @@ int main(int argc, const char **argv)
 	
 	printf("Motor Enabled\n");
 	
-	//calls our move function
-	actual_result = Move(client,position2d,bumper,3.2,0.0);
-	printf("Results Returned from Move: %f\n",actual_result);
+	//calls our move function to move to second point
+	actual_result_trans = Move(client,position2d,bumper,3.2,0.0);
+	printf("Results Returned from Move: %f\n",actual_result_trans);
+	
+	
+	playerc_client_read(client);
+	printf("Stopped in position : %f %f %f  bumpers: %d %d\n", position2d->px, position2d->py, position2d->pa, bumper->bumpers[0], bumper->bumpers[1]);
+	
+	//rotates robot into position for third point
+	actual_result_angle = Turn(client,position2d,bumper,(PI/2.0));
+	printf("Results Returned from TurnL %f\n",actual_result_angle);
+	
+	playerc_client_read(client);
+	printf("Stopped in position : %f %f %f  bumpers: %d %d\n", position2d->px, position2d->py, position2d->pa, bumper->bumpers[0], bumper->bumpers[1]);
+	
+	//moves to third point from second point
+	actual_result_trans = Move(client,position2d,bumper,3.04,0.0);
+	printf("Results Returned from Move: %f\n",actual_result_trans);
+	
+	playerc_client_read(client);
+	printf("Stopped in position : %f %f %f  bumpers: %d %d\n", position2d->px, position2d->py, position2d->pa, bumper->bumpers[0], bumper->bumpers[1]);
+	
+	//rotates robot into position for the fourth point
+	actual_result_angle = Turn(client,position2d,bumper,1.18662);
+	printf("Results Returned from TurnL %f\n",actual_result_angle);
+	
+	playerc_client_read(client);
+	printf("Stopped in position : %f %f %f  bumpers: %d %d\n", position2d->px, position2d->py, position2d->pa, bumper->bumpers[0], bumper->bumpers[1]);
+	
+	//moves to fouth point from third point
+	actual_result_trans = Move(client,position2d,bumper,4.02,0.0);
+	printf("Results Returned from Move: %f\n",actual_result_trans);
+	
+	playerc_client_read(client);
+	printf("Stopped in position : %f %f %f  bumpers: %d %d\n", position2d->px, position2d->py, position2d->pa, bumper->bumpers[0], bumper->bumpers[1]);
+	
+	//rotates robot into position for point five
+	actual_result_angle = Turn(client,position2d,bumper,-1.18662);
+	printf("Results Returned from TurnL %f\n",actual_result_angle);
+	
+	playerc_client_read(client);
+	printf("Stopped in position : %f %f %f  bumpers: %d %d\n", position2d->px, position2d->py, position2d->pa, bumper->bumpers[0], bumper->bumpers[1]);
+	
+	//moves robot from position four to position five
+	actual_result_trans = Move(client,position2d,bumper,6.83,0.0);
+	printf("Results Returned from Move: %f\n",actual_result_trans);
 	
 	playerc_client_read(client);
 	printf("Stopped in position : %f %f %f  bumpers: %d %d\n", position2d->px, position2d->py, position2d->pa, bumper->bumpers[0], bumper->bumpers[1]);

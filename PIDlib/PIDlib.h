@@ -5,6 +5,7 @@
 
 #define PI 3.141592654
 
+#define ABSOLUTE_COORD
 
 int bumped(playerc_bumper_t *);
 
