@@ -53,6 +53,30 @@ int main(int argc, const char **argv)
 	
 	printf("Motor Enabled\n");
 	
+	/*
+	Turn(client,position2d,bumper,PI/2.0);
+	printPos(client,position2d,bumper);
+	Turn(client,position2d,bumper,3.0*PI/2.0);
+	printPos(client,position2d,bumper);
+	Turn(client,position2d,bumper,PI);
+	printPos(client,position2d,bumper);
+	Turn(client,position2d,bumper,-3.0*PI/2.0);
+	printPos(client,position2d,bumper);
+	Turn(client,position2d,bumper,-PI/2.0);
+	printPos(client,position2d,bumper);
+	Turn(client,position2d,bumper,-PI/4.0);
+	printPos(client,position2d,bumper);
+	Turn(client,position2d,bumper,0);
+	printPos(client,position2d,bumper);
+	Turn(client,position2d,bumper,-0.9*PI);
+	printPos(client,position2d,bumper);
+	Turn(client,position2d,bumper,0.9*PI);
+	printPos(client,position2d,bumper);
+	Turn(client,position2d,bumper,0.0);
+	printPos(client,position2d,bumper);
+	
+	*/
+	
 #ifdef ABSOLUTE_COORD
 	//calls our move function to move to second point
 	actual_result_trans = Move(client,position2d,bumper,3.2,0.0);
@@ -75,7 +99,7 @@ int main(int argc, const char **argv)
 	printPos(client,position2d,bumper);
 	
 	//moves to fouth point from third point
-	actual_result_trans = Move(client,position2d,bumper,-0.23,4.54);
+	actual_result_trans = Move(client,position2d,bumper,-0.5,4.7);
 	printf("Results Returned from Move: %f\n",actual_result_trans);
 	printPos(client,position2d,bumper);
 	
@@ -85,7 +109,7 @@ int main(int argc, const char **argv)
 	printPos(client,position2d,bumper);
 	
 	//moves robot from position four to position five
-	actual_result_trans = Move(client,position2d,bumper,-0.23,11.37);
+	actual_result_trans = Move(client,position2d,bumper,-0.55,11.6);
 	printf("Results Returned from Move: %f\n",actual_result_trans);
 	printPos(client,position2d,bumper);
 #else

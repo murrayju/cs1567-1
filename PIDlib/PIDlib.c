@@ -162,10 +162,26 @@ double targetRotError(playerc_position2d_t * pos2D, pid_data * data, double tX, 
 	Yrem = tY - pos2D->py;
 	
 	//find the correct angle from pos to target
-	phi = atan2(Yrem, Xrem);
+	//phi = atan2(Yrem, Xrem);
+	if(Xrem == 0.0) {
+		if(Yrem >= 0.0) {
+			phi = PI/2.0;
+		} else {
+			phi = -PI/2.0;
+		}
+	} else if(Xrem > 0.0) {
+		phi = atan(Yrem / Xrem);
+	} else { //if(Xrem < 0.0) {
+		if(Yrem >= 0.0) {
+			phi = PI + atan(Yrem / Xrem);
+		} else {
+			phi = atan(Yrem / Xrem) - PI;
+		}
+	}
+	
 	//error = phi - pos2D->pa;
 	error = angleDiff(phi, pos2D->pa);
-	printf("TRE: phi=%f err=%f\n",phi,error);
+	printf("TRE: dist=(%f,%f) phi=%f err=%f\n",Xrem,Yrem,phi,error);
 #else
 	//calculate angle based on relative coordinate system
 	mew = atan2(tY, tX);
@@ -217,6 +233,16 @@ int bumped(playerc_bumper_t * b) {
 	}
 }
 
+double angleMultiplier(double v) {
+	if(fabs(v) > 1.25) {
+		return 1.25;
+	} else if(fabs(v) < .5) {
+		return .5;
+	} else {
+		return fabs(v);
+	}
+}
+
 double Move(playerc_client_t * client, playerc_position2d_t * pos2D, playerc_bumper_t * bumper, double X, double Y) {
 	double tError, rError, vX, vA;
 	pid_data tranData, rotData;
@@ -232,10 +258,10 @@ double Move(playerc_client_t * client, playerc_position2d_t * pos2D, playerc_bum
 	tranData.tol = 0.01;
 	tranData.maxI = 10;
 	
-	rotData.Kp = 6;
-	rotData.Kd = 2;
+	rotData.Kp = 2.0;
+	rotData.Kd = 4.0;
 	rotData.Ki = .01;
-	rotData.tol = 0.01;
+	rotData.tol = 0.005;
 	rotData.maxI = 10;
 	
 	playerc_client_read(client);
@@ -264,7 +290,7 @@ double Move(playerc_client_t * client, playerc_position2d_t * pos2D, playerc_bum
 			//printf("Backwards! T: %f  R: %f\n",tError,rError);
 		}
 		vX = PID(&tranData);
-		vA = PID(&rotData);// * fabs(vX);
+		vA = PID(&rotData) * angleMultiplier(vX);
 		playerc_position2d_set_cmd_vel(pos2D, vX, 0, vA, 1); //set new speeds
 		playerc_client_read(client); //update position from sensors
 		
@@ -287,10 +313,10 @@ double Turn(playerc_client_t * client, playerc_position2d_t * pos2D, playerc_bum
 	memset(&rotData, 0, sizeof(pid_data));
 	
 	//Set parameters
-	rotData.Kp = 0.9;
-	rotData.Kd = 0.9;
-	rotData.Ki = .01;
-	rotData.tol = 0.001;
+	rotData.Kp = 1.1;
+	rotData.Kd = 0.05;
+	rotData.Ki = 0.06;
+	rotData.tol = 0.005;
 	rotData.maxI = 0.5;
 	
 	playerc_client_read(client);
