@@ -115,7 +115,37 @@ double angleDiff(double A1, double A2) {
 		if(A2 >= 0) {
 			return A1 - A2;
 		} else {
-			temp = (PI - A1) + (PI + A2);
+			temp = -((PI - A1) + (PI + A2));
+			if(temp < -PI) {
+				temp += PI;
+				return PI + temp;
+			} else {
+				return temp;
+			}
+		}
+	} else if(A1 < 0 && A1 >= (-PI / 2.0)) {
+		if(A2 <= 0) {
+			return A1 - A2;
+		} else {
+			temp = A1 - A2;
+			if(temp < -PI) {
+				temp += PI;
+				return PI + temp;
+			} else {
+				return temp;
+			}
+		}
+	} else {
+		if(A2 <= 0) {
+			return A1 - A2;
+		} else {
+			temp = (PI + A1) + (PI - A2);
+			if(temp > PI) {
+				temp -= PI;
+				return -PI + temp;
+			} else {
+				return temp;
+			}
 		}
 	}
 }
@@ -133,7 +163,9 @@ double targetRotError(playerc_position2d_t * pos2D, pid_data * data, double tX, 
 	
 	//find the correct angle from pos to target
 	phi = atan2(Yrem, Xrem);
-	error = phi - pos2D->pa;
+	//error = phi - pos2D->pa;
+	error = angleDiff(phi, pos2D->pa);
+	printf("TRE: phi=%f err=%f\n",phi,error);
 #else
 	//calculate angle based on relative coordinate system
 	mew = atan2(tY, tX);
@@ -149,12 +181,10 @@ double targetRotError(playerc_position2d_t * pos2D, pid_data * data, double tX, 
 	//Calculate angle from current pos robot X axis to target
 	phi = atan2(Yrem, Xrem);
 	
-	error = phi - pos2D->pa;
+	//error = phi - pos2D->pa;
+	error = angleDiff(phi, pos2D->pa);
 	printf("TRE: target=(%f, %f) phi=%f err=%f\n",Xreal,Yreal,phi,error);
 #endif
-	
-	
-	
 	return data->errorHist[data->iErr] = error;
 }
 
@@ -168,10 +198,11 @@ double rotError(playerc_position2d_t * pos2D, pid_data * data, double tA) {
 	
 	data->iErr = (data->iErr + 1) % NUMERR;
 	
-	error = fabs( fabs(tA) - fabs(relA) );
+	/*error = fabs( fabs(tA) - fabs(relA) );
 	if(tA < 0) {
 		error = -error;
-	}
+	}*/
+	error = angleDiff(tA, pos2D->pa);
 	
 	return data->errorHist[data->iErr] = error;
 }
