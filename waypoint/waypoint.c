@@ -1,11 +1,15 @@
-#include <stdio.h>
+//Dean Pantages
+//Justin Murray
+//Primary Waypoint code
 
+#include <stdio.h>
 #include <libplayerc/playerc.h>
 #include "../PIDlib/PIDlib.h"
 
 #define SERVER "gort" //"localhost"
 #define PORT	9876 //12121
 
+//Prints position data of the robot, used for debugging and tracking
 void printPos(playerc_client_t * client, playerc_position2d_t * pos2D, playerc_bumper_t * bumper) {
 	playerc_client_read(client);
 	printf("\n\nStopped in position : %f %f %f  bumpers: %d %d\n\n", pos2D->px, pos2D->py, pos2D->pa, bumper->bumpers[0], bumper->bumpers[1]);
@@ -20,8 +24,7 @@ int main(int argc, const char **argv)
 	playerc_position2d_t *position2d;
 	playerc_bumper_t * bumper;
 	
-	// Create a client object and connect to the server; the server must
-	// be running on "localhost" at port 6665
+	// Create a client object and connect to the server
 	client = playerc_client_create(NULL, SERVER, PORT);
 	if (playerc_client_connect(client) != 0)
 	{
@@ -29,6 +32,7 @@ int main(int argc, const char **argv)
 		return -1;
 	}
 	printf("Connected...");
+	
 	// Create a position2d proxy (device id "position2d:0") and susbscribe
 	// in read/write mode
 	position2d = playerc_position2d_create(client, 0);
@@ -37,45 +41,21 @@ int main(int argc, const char **argv)
 		fprintf(stderr, "error: %s\n", playerc_error_str());
 		return -1;
 	}
-	
 	printf("Position2D Subscribed...");
 	
+	//Creates a Bumper Device Proxy
 	bumper = playerc_bumper_create(client, 0);
 	if(playerc_bumper_subscribe(bumper, PLAYERC_OPEN_MODE)) {
 		fprintf(stderr, "error: %s\n", playerc_error_str());
 		return -1;
 	}
-	
 	printf("Bumper Subscribed...");
 	
 	// Enable the robots motors
 	playerc_position2d_enable(position2d, 1);
-	
 	printf("Motor Enabled\n");
 	
-	/*
-	Turn(client,position2d,bumper,PI/2.0);
-	printPos(client,position2d,bumper);
-	Turn(client,position2d,bumper,3.0*PI/2.0);
-	printPos(client,position2d,bumper);
-	Turn(client,position2d,bumper,PI);
-	printPos(client,position2d,bumper);
-	Turn(client,position2d,bumper,-3.0*PI/2.0);
-	printPos(client,position2d,bumper);
-	Turn(client,position2d,bumper,-PI/2.0);
-	printPos(client,position2d,bumper);
-	Turn(client,position2d,bumper,-PI/4.0);
-	printPos(client,position2d,bumper);
-	Turn(client,position2d,bumper,0);
-	printPos(client,position2d,bumper);
-	Turn(client,position2d,bumper,-0.9*PI);
-	printPos(client,position2d,bumper);
-	Turn(client,position2d,bumper,0.9*PI);
-	printPos(client,position2d,bumper);
-	Turn(client,position2d,bumper,0.0);
-	printPos(client,position2d,bumper);
-	
-	*/
+
 	
 #ifdef ABSOLUTE_COORD
 	//calls our move function to move to second point
@@ -149,7 +129,7 @@ int main(int argc, const char **argv)
 	printPos(client,position2d,bumper);
 #endif
 	
-	// Shutdown and tidy up
+	// Shutdown and Unsubscribe Devices
 	playerc_position2d_unsubscribe(position2d);
 	playerc_position2d_destroy(position2d);
 	playerc_bumper_unsubscribe(bumper);
