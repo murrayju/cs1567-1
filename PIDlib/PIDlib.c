@@ -11,6 +11,9 @@
 
 #define NUMERR 10
 
+/*This is the struct that contains all of the related PID data variables
+ * 	
+ */
 typedef struct pid_data_struct {
 	double Kp, Kd, Ki;
 	double errorHist[NUMERR];
@@ -21,6 +24,7 @@ typedef struct pid_data_struct {
 	int doDiff;
 } pid_data;
 
+
 double prevError(pid_data * data) {
 	if(data->iErr == 0) {
 		return data->errorHist[NUMERR - 1];
@@ -29,6 +33,12 @@ double prevError(pid_data * data) {
 	}
 }
 
+
+/*
+ *	Sums the array of error values that are to be used in the calculation
+ *	of the integral term of the PID controller.  If the sum if greater than
+ *	the specified maxI value from the pid_data_struct the function will return maxI
+ */
 double errorSum(pid_data * data) {
 	double sum = 0;
 	int i;
@@ -43,10 +53,20 @@ double errorSum(pid_data * data) {
 	}
 }
 
+
+/*
+ *	Calculates Euclidean Distance between two points
+ */
 double dist(double x, double y) {
 	return sqrt( x*x + y*y);
 }
 
+
+/*
+ *	This is the primary PID function.  This function is passed a pointer to a
+ *	pid_data struct and uses the values to calculate the result to be passed to
+ *	the move function.
+ */
 double PID(pid_data * data) {
 	double pTerm, dTerm, iTerm;
 	
@@ -68,6 +88,13 @@ double PID(pid_data * data) {
 	return (pTerm + dTerm + iTerm);
 }
 
+
+/*
+ *	Calculates the translational error of the robot, given a pointer to the
+ *	position2d device, a pointer to a pid_data_struct and the coordinates of the goal
+ *	Given the type of coordinate system specified at compile time this function will
+ * 	return an error based on a relative or fixed coordinate system
+ */
 double tranError(playerc_position2d_t * pos2D, pid_data * data, double tX, double tY) {
 	double relX = pos2D->px - data->Xi; //X distance travelled
 	double relY = pos2D->py - data->Yi; //Y distance travelled
@@ -94,6 +121,7 @@ double tranError(playerc_position2d_t * pos2D, pid_data * data, double tX, doubl
 	
 	return data->errorHist[data->iErr] = dist(Xrem,Yrem);
 }
+
 
 //return the difference between A1 and A2, relative to A1
 //A1 is the goal, A2 is current
@@ -150,6 +178,12 @@ double angleDiff(double A1, double A2) {
 	}
 }
 
+
+/*
+ *	This function is used to correct the angle of the robot while
+ * 	in translation.  This function determines the quadrant that the robot
+ *	is in and uses trig to calculate the angle
+ */
 double targetRotError(playerc_position2d_t * pos2D, pid_data * data, double tX, double tY) {
 	double relX = pos2D->px - data->Xi; //X distance travelled
 	double relY = pos2D->py - data->Yi; //Y distance travelled
@@ -204,6 +238,12 @@ double targetRotError(playerc_position2d_t * pos2D, pid_data * data, double tX, 
 	return data->errorHist[data->iErr] = error;
 }
 
+
+
+/*
+ *	This function simply calculates the angle of error between the robot's heading
+ * 	and the target heading
+ */
 double rotError(playerc_position2d_t * pos2D, pid_data * data, double tA) {
 #ifdef  ABSOLUTE_COORD
 	double relA = pos2D->pa;
@@ -224,6 +264,10 @@ double rotError(playerc_position2d_t * pos2D, pid_data * data, double tA) {
 }
 
 
+
+/*
+ *	This function detects if the robots bumper device has been activated
+ */
 int bumped(playerc_bumper_t * b) {
 	static int storeBump = 0;
 	if(storeBump) {
@@ -233,6 +277,12 @@ int bumped(playerc_bumper_t * b) {
 	}
 }
 
+
+
+/*
+ *	This is a multiplier for the anglular velocity correction for when
+ *	the robot is in motion.
+ */
 double angleMultiplier(double v) {
 	if(fabs(v) > 1.25) {
 		return 1.25;
@@ -243,6 +293,11 @@ double angleMultiplier(double v) {
 	}
 }
 
+
+
+/*
+ *	This is the primary move function that will move the robot to the specified coordinates
+ */
 double Move(playerc_client_t * client, playerc_position2d_t * pos2D, playerc_bumper_t * bumper, double X, double Y) {
 	double tError, rError, vX, vA;
 	pid_data tranData, rotData;
@@ -251,7 +306,7 @@ double Move(playerc_client_t * client, playerc_position2d_t * pos2D, playerc_bum
 	memset(&tranData, 0, sizeof(pid_data));
 	memset(&rotData, 0, sizeof(pid_data));
 	
-	//Set parameters
+	//Set PID parameters
 	tranData.Kp = 0.9;
 	tranData.Kd = 1.0;
 	tranData.Ki = 0.01;
@@ -287,7 +342,6 @@ double Move(playerc_client_t * client, playerc_position2d_t * pos2D, playerc_bum
 				rError -= PI;
 			}
 			rotData.errorHist[rotData.iErr] = rError;
-			//printf("Backwards! T: %f  R: %f\n",tError,rError);
 		}
 		vX = PID(&tranData);
 		vA = PID(&rotData) * angleMultiplier(vX);
@@ -305,6 +359,11 @@ double Move(playerc_client_t * client, playerc_position2d_t * pos2D, playerc_bum
 	return tranError(pos2D, &tranData, X, Y);
 }
 
+
+
+/*
+ *	Primary turn function, this function will rotate the robot to a specified number of radians
+ */
 double Turn(playerc_client_t * client, playerc_position2d_t * pos2D, playerc_bumper_t * bumper, double A) {
 	double rError, vA;
 	pid_data rotData;
@@ -312,7 +371,7 @@ double Turn(playerc_client_t * client, playerc_position2d_t * pos2D, playerc_bum
 	//clear struct
 	memset(&rotData, 0, sizeof(pid_data));
 	
-	//Set parameters
+	//Set PID parameters
 	rotData.Kp = 1.1;
 	rotData.Kd = 0.05;
 	rotData.Ki = 0.06;
